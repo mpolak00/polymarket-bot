@@ -5,3 +5,4 @@ aiohttp>=3.9.0
 web3>=6.15.0
 eth-account>=0.11.0
 colorlog>=6.8.0
+flask>=3.0.0

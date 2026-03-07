@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polymarket Whale Bot – Setup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+  }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 40px;
+    width: 100%; max-width: 540px;
+  }
+  .logo { font-size: 32px; margin-bottom: 8px; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: #8b949e; font-size: 14px; margin-bottom: 32px; }
+  .section-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #58a6ff;
+    margin: 28px 0 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ""; flex: 1; height: 1px; background: #30363d;
+  }
+  label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 5px; }
+  input, select {
+    width: 100%; padding: 10px 12px;
+    background: #0d1117; border: 1px solid #30363d;
+    border-radius: 8px; color: #e6edf3; font-size: 14px;
+    margin-bottom: 14px; outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: #58a6ff; }
+  input[type="range"] {
+    padding: 0; border: none; background: none;
+    accent-color: #58a6ff;
+  }
+  .range-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .range-row input { margin-bottom: 0; flex: 1; }
+  .range-val {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 6px 10px; font-size: 13px; min-width: 70px; text-align: center;
+  }
+  .hint { font-size: 12px; color: #6e7681; margin-top: -10px; margin-bottom: 14px; }
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .toggle-label { font-size: 14px; }
+  .toggle-sub { font-size: 12px; color: #8b949e; }
+  .switch { position: relative; width: 44px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background: #30363d; border-radius: 24px; transition: .3s;
+  }
+  .slider:before {
+    content: ""; position: absolute;
+    width: 18px; height: 18px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%; transition: .3s;
+  }
+  input:checked + .slider { background: #238636; }
+  input:checked + .slider:before { transform: translateX(20px); }
+  .btn {
+    width: 100%; padding: 12px;
+    background: #238636; border: none; border-radius: 8px;
+    color: #fff; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 10px; transition: background .15s;
+  }
+  .btn:hover { background: #2ea043; }
+  .alert {
+    background: #1f2d3d; border: 1px solid #58a6ff;
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 13px; color: #79c0ff; margin-bottom: 20px;
+  }
+  {% if error %}
+  .error-box {
+    background: #2d1b1b; border: 1px solid #f85149;
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 13px; color: #f85149; margin-bottom: 16px;
+  }
+  {% endif %}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🐋</div>
+  <h1>Polymarket Whale Bot</h1>
+  <p class="sub">Prati whale-ove s @PredictionRadarBot i automatski kopiraj njihove tradove</p>
+
+  {% if error %}
+  <div class="error-box">⚠ {{ error }}</div>
+  {% endif %}
+
+  <div class="alert">
+    ℹ Podaci se cuvaju lokalno u <code>.env</code> fajlu na tvom racunaru. Nikad se ne salju nigdje.
+  </div>
+
+  <form method="POST" action="/setup">
+
+    <div class="section-title">Telegram API</div>
+    <p class="hint" style="margin-top:-8px; margin-bottom:12px;">
+      Dobij na <a href="https://my.telegram.org/apps" target="_blank" style="color:#58a6ff;">my.telegram.org/apps</a>
+      → "Create new application"
+    </p>
+
+    <label>API ID</label>
+    <input name="api_id" type="text" placeholder="12345678" value="{{ vals.api_id }}" required>
+
+    <label>API Hash</label>
+    <input name="api_hash" type="text" placeholder="abcdef1234567890abcdef1234567890" value="{{ vals.api_hash }}" required>
+
+    <label>Broj telefona (medjunarodnom formatu)</label>
+    <input name="phone" type="text" placeholder="+38160XXXXXXX" value="{{ vals.phone }}" required>
+
+    <div class="section-title">Polymarket Wallet</div>
+    <p class="hint" style="margin-top:-8px; margin-bottom:12px;">
+      MetaMask → 3 tacke → "Account details" → "Show private key"
+    </p>
+
+    <label>Polygon Private Key</label>
+    <input name="private_key" type="password" placeholder="0x..." value="{{ vals.private_key }}" required>
+    <p class="hint">Koristiti zasebni wallet samo za bota, ne glavni!</p>
+
+    <div class="section-title">Parametri Tradinga</div>
+
+    <label>Max $ po jednom tradeu (USDC)</label>
+    <div class="range-row">
+      <input type="range" name="max_trade" min="1" max="200" value="{{ vals.max_trade or 20 }}"
+             oninput="document.getElementById('max_trade_val').innerText = '$' + this.value">
+      <span class="range-val" id="max_trade_val">${{ vals.max_trade or 20 }}</span>
+    </div>
+
+    <label>Min. velicina whale trada da se kopira ($)</label>
+    <div class="range-row">
+      <input type="range" name="min_whale" min="1000" max="50000" step="500" value="{{ vals.min_whale or 5000 }}"
+             oninput="document.getElementById('min_whale_val').innerText = '$' + parseInt(this.value).toLocaleString()">
+      <span class="range-val" id="min_whale_val">${{ (vals.min_whale or 5000)|int|string }}</span>
+    </div>
+    <p class="hint">Ignorisi whale tradove ispod ovog iznosa (filtriraj buku)</p>
+
+    <label>Scale faktor kopiranja</label>
+    <div class="range-row">
+      <input type="range" name="scale" min="0.0001" max="0.01" step="0.0001" value="{{ vals.scale or 0.001 }}"
+             oninput="document.getElementById('scale_val').innerText = (parseFloat(this.value)*100).toFixed(2) + '%'">
+      <span class="range-val" id="scale_val">{{ "%.2f"|format((vals.scale or 0.001)|float * 100) }}%</span>
+    </div>
+    <p class="hint">Tvoj bet = whale_bet × faktor. Uvijek ogranicen max iznosom gore.</p>
+
+    <div class="section-title">Opcije</div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Dry Run (simulacija)</div>
+        <div class="toggle-sub">Prati i loguje ali ne trosi pravi novac</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" name="dry_run" id="dry_run" {% if vals.dry_run != 'false' %}checked{% endif %}>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button type="submit" class="btn">Sacuvaj i nastavi →</button>
+  </form>
+</div>
+</body>
+</html>

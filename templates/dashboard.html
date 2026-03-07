@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whale Bot – Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117; color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+  }
+  /* ── Layout ── */
+  .topbar {
+    background: #161b22; border-bottom: 1px solid #30363d;
+    padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .brand { font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+    padding: 20px 24px;
+    max-width: 1400px; margin: 0 auto;
+    min-height: calc(100vh - 56px);
+  }
+  /* ── Stat cards ── */
+  .stats { grid-column: 1/-1; display: flex; gap: 12px; flex-wrap: wrap; }
+  .stat-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    padding: 16px 20px; flex: 1; min-width: 140px;
+  }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8b949e; margin-bottom: 6px; }
+  .stat-val { font-size: 24px; font-weight: 700; }
+  .stat-val.green { color: #3fb950; }
+  .stat-val.blue  { color: #58a6ff; }
+  .stat-val.orange{ color: #d29922; }
+  /* ── Panel ── */
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px; border-bottom: 1px solid #30363d;
+    font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-body { padding: 16px 18px; flex: 1; overflow-y: auto; }
+  /* ── Log ── */
+  #log-box {
+    background: #0d1117; border-radius: 8px; padding: 12px;
+    font-family: "SF Mono", "Fira Code", monospace; font-size: 12px;
+    height: 340px; overflow-y: auto; line-height: 1.6;
+  }
+  .log-INFO    { color: #3fb950; }
+  .log-WARNING { color: #d29922; }
+  .log-ERROR   { color: #f85149; }
+  .log-DEBUG   { color: #8b949e; }
+  .log-ts { color: #484f58; margin-right: 6px; }
+  /* ── Trades table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 8px 10px;
+    color: #8b949e; font-weight: 500; border-bottom: 1px solid #30363d;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid #21262d; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1c2128; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-yes  { background: #1b3a2d; color: #3fb950; }
+  .badge-no   { background: #3d1c1c; color: #f85149; }
+  .badge-dry  { background: #1f2d3d; color: #58a6ff; }
+  .badge-live { background: #1b3a2d; color: #3fb950; }
+  /* ── Controls ── */
+  .ctrl-btn {
+    padding: 9px 20px; border-radius: 8px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .btn-start { background: #238636; color: #fff; }
+  .btn-start:hover { background: #2ea043; }
+  .btn-stop  { background: #da3633; color: #fff; }
+  .btn-stop:hover  { background: #f85149; }
+  .btn-setup { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+  .btn-setup:hover { background: #30363d; }
+  /* ── Status dot ── */
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-on  { background: #3fb950; box-shadow: 0 0 6px #3fb950; animation: pulse 1.5s infinite; }
+  .dot-off { background: #484f58; }
+  @keyframes pulse {
+    0%,100% { opacity: 1; } 50% { opacity: .4; }
+  }
+  /* ── Whale list ── */
+  .whale-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid #21262d;
+    font-size: 13px;
+  }
+  .whale-row:last-child { border-bottom: none; }
+  .whale-addr { font-family: monospace; color: #8b949e; font-size: 12px; }
+  .whale-count { color: #58a6ff; font-weight: 600; }
+  /* ── Responsive ── */
+  @media(max-width:900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">🐋 Whale Bot</div>
+  <div class="topbar-right">
+    <span id="status-dot" class="dot {{ 'dot-on' if bot_running else 'dot-off' }}"></span>
+    <span id="status-txt" style="font-size:13px; color:#8b949e;">
+      {{ 'Aktivan' if bot_running else 'Zaustavljen' }}
+    </span>
+    <button class="ctrl-btn btn-setup" onclick="location.href='/setup'">⚙ Podesavanja</button>
+    {% if bot_running %}
+    <button class="ctrl-btn btn-stop" onclick="botAction('stop')">⏹ Zaustavi</button>
+    {% else %}
+    <button class="ctrl-btn btn-start" onclick="botAction('start')">▶ Pokreni</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- Stat cards -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Ukupno tradova</div>
+      <div class="stat-val blue" id="stat-total">{{ trades|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Potroseno USDC</div>
+      <div class="stat-val green" id="stat-spent">
+        ${{ "%.2f"|format(trades|sum(attribute='size_usdc')) }}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Live tradovi</div>
+      <div class="stat-val orange" id="stat-live">
+        {{ trades|selectattr('dry_run', 'equalto', false)|list|length }}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Whaleovi vidjeni</div>
+      <div class="stat-val blue" id="stat-whales">{{ whale_stats|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Mod</div>
+      <div class="stat-val {{ 'orange' if dry_run else 'green' }}" id="stat-mode">
+        {{ 'DRY RUN' if dry_run else 'LIVE' }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Left column: logs + trades -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+
+    <!-- Live log -->
+    <div class="panel">
+      <div class="panel-header">
+        📋 Live log
+        <span style="margin-left:auto; font-size:11px; color:#8b949e;">auto-refresh 3s</span>
+      </div>
+      <div class="panel-body" style="padding:12px;">
+        <div id="log-box">
+          {% for line in logs %}
+          <div><span class="log-ts">{{ line.ts }}</span><span class="log-{{ line.level }}">{{ line.msg }}</span></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade history -->
+    <div class="panel">
+      <div class="panel-header">📊 Historija tradova</div>
+      <div class="panel-body" style="padding:0;">
+        {% if trades %}
+        <table>
+          <thead>
+            <tr>
+              <th>Vrijeme</th>
+              <th>Tržište</th>
+              <th>Pozicija</th>
+              <th>Iznos</th>
+              <th>Vjerovatn.</th>
+              <th>Tip</th>
+            </tr>
+          </thead>
+          <tbody id="trades-body">
+            {% for t in trades|reverse %}
+            <tr>
+              <td style="color:#8b949e; white-space:nowrap;">{{ t.ts[11:] }}</td>
+              <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ t.market }}">{{ t.market }}</td>
+              <td><span class="badge badge-{{ t.outcome|lower }}">{{ t.outcome }}</span></td>
+              <td>${{ "%.2f"|format(t.size_usdc) }}</td>
+              <td>{{ "%.0f"|format(t.probability * 100) }}%</td>
+              <td><span class="badge {{ 'badge-dry' if t.dry_run else 'badge-live' }}">{{ 'DRY' if t.dry_run else 'LIVE' }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="padding:30px; text-align:center; color:#484f58;">
+          Nema tradova jos. Pokreni bota i cekaj whale signal.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right column: whale tracker + settings summary -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+
+    <!-- Whale stats -->
+    <div class="panel">
+      <div class="panel-header">🐋 Praćeni Whaleovi</div>
+      <div class="panel-body">
+        {% if whale_stats %}
+        {% for addr, ws in whale_stats.items() %}
+        <div class="whale-row">
+          <div>
+            <div class="whale-addr">{{ addr[:8] }}…{{ addr[-4:] }}</div>
+            <div style="font-size:11px; color:#484f58; margin-top:2px;">Zadnji: {{ ws.last_seen }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="whale-count">×{{ ws.count }}</div>
+            <div style="font-size:11px; color:#8b949e;">${{ "%.0f"|format(ws.total_usdc) }}</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center; color:#484f58; padding:20px 0;">
+          Nema whale aktivnosti jos.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Settings summary -->
+    <div class="panel">
+      <div class="panel-header">⚙ Aktivna podesavanja</div>
+      <div class="panel-body">
+        <table style="font-size:13px;">
+          <tr><td style="color:#8b949e; padding:6px 0;">Max po tradeu</td>
+              <td style="text-align:right; font-weight:600;">${{ cfg.max_trade }}</td></tr>
+          <tr><td style="color:#8b949e; padding:6px 0;">Min whale iznos</td>
+              <td style="text-align:right; font-weight:600;">${{ cfg.min_whale }}</td></tr>
+          <tr><td style="color:#8b949e; padding:6px 0;">Scale faktor</td>
+              <td style="text-align:right; font-weight:600;">{{ cfg.scale_pct }}%</td></tr>
+          <tr><td style="color:#8b949e; padding:6px 0;">Prob. window</td>
+              <td style="text-align:right; font-weight:600;">{{ cfg.min_prob }}% – {{ cfg.max_prob }}%</td></tr>
+          <tr><td style="color:#8b949e; padding:6px 0;">Cooldown</td>
+              <td style="text-align:right; font-weight:600;">{{ cfg.cooldown }}s</td></tr>
+        </table>
+        <button class="ctrl-btn btn-setup" style="width:100%; margin-top:14px;" onclick="location.href='/setup'">Promijeni podesavanja</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  // ── Auto-refresh logs + stats every 3 s ─────────────────────────────────────
+  let lastLogCount = {{ logs|length }};
+
+  async function refreshLogs() {
+    try {
+      const r = await fetch('/api/logs');
+      const data = await r.json();
+      if (data.logs.length !== lastLogCount) {
+        lastLogCount = data.logs.length;
+        const box = document.getElementById('log-box');
+        box.innerHTML = data.logs.map(l =>
+          `<div><span class="log-ts">${l.ts}</span><span class="log-${l.level}">${escHtml(l.msg)}</span></div>`
+        ).join('');
+        box.scrollTop = box.scrollHeight;
+      }
+
+      // Update status
+      const dot = document.getElementById('status-dot');
+      const txt = document.getElementById('status-txt');
+      if (data.running) {
+        dot.className = 'dot dot-on';
+        txt.textContent = 'Aktivan';
+      } else {
+        dot.className = 'dot dot-off';
+        txt.textContent = 'Zaustavljen';
+      }
+    } catch(e) {}
+  }
+
+  async function refreshStats() {
+    try {
+      const r = await fetch('/api/stats');
+      const d = await r.json();
+      document.getElementById('stat-total').textContent = d.total;
+      document.getElementById('stat-spent').textContent = '$' + d.spent.toFixed(2);
+      document.getElementById('stat-live').textContent = d.live;
+      document.getElementById('stat-whales').textContent = d.whales;
+    } catch(e) {}
+  }
+
+  async function botAction(action) {
+    await fetch('/api/bot/' + action, { method: 'POST' });
+    setTimeout(() => location.reload(), 800);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Scroll log to bottom on load
+  const box = document.getElementById('log-box');
+  if (box) box.scrollTop = box.scrollHeight;
+
+  setInterval(refreshLogs, 3000);
+  setInterval(refreshStats, 5000);
+</script>
+</body>
+</html>
