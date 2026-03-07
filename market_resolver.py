@@ -18,6 +18,50 @@ log = get_logger(__name__)
 
 GAMMA_SEARCH_URL = f"{config.GAMMA_API_URL}/markets"
 
+# ── Retry helper ──────────────────────────────────────────────────────────────
+
+async def _get_json(url: str, params: dict) -> Optional[object]:
+    """GET with exponential-backoff retry. Returns parsed JSON or None."""
+    for attempt in range(1, 4):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url, params=params, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+                    log.warning("Gamma API HTTP %s (attempt %s/3)", resp.status, attempt)
+        except asyncio.TimeoutError:
+            log.warning("Gamma API timeout (attempt %s/3)", attempt)
+        except Exception as exc:
+            log.warning("Gamma API error (attempt %s/3): %s", attempt, exc)
+
+        if attempt < 3:
+            await asyncio.sleep(2 ** attempt)  # 2s, 4s
+
+    log.error("Gamma API unavailable after 3 attempts.")
+    return None
+
+
+# ── Liquidity check ───────────────────────────────────────────────────────────
+
+def _has_liquidity(market: dict) -> bool:
+    """Return True if the market has enough liquidity to trade."""
+    if config.MIN_LIQUIDITY_USDC <= 0:
+        return True
+    liquidity = float(market.get("liquidityNum") or market.get("liquidity") or 0)
+    if liquidity < config.MIN_LIQUIDITY_USDC:
+        log.info(
+            "Skipping market – liquidity $%.0f < minimum $%.0f  (%s)",
+            liquidity,
+            config.MIN_LIQUIDITY_USDC,
+            market.get("question", "")[:60],
+        )
+        return False
+    return True
+
+
+# ── Main resolver ─────────────────────────────────────────────────────────────
 
 async def resolve_market(signal: WhaleSignal) -> bool:
     """
@@ -31,17 +75,9 @@ async def resolve_market(signal: WhaleSignal) -> bool:
         "closed": "false",
         "limit": 10,
     }
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                GAMMA_SEARCH_URL, params=params, timeout=aiohttp.ClientTimeout(total=10)
-            ) as resp:
-                if resp.status != 200:
-                    log.error("Gamma API returned %s", resp.status)
-                    return False
-                data = await resp.json()
-    except Exception as exc:
-        log.error("Gamma API request failed: %s", exc)
+
+    data = await _get_json(GAMMA_SEARCH_URL, params)
+    if data is None:
         return False
 
     markets = data if isinstance(data, list) else data.get("markets", [])
@@ -49,16 +85,25 @@ async def resolve_market(signal: WhaleSignal) -> bool:
         log.warning("No markets found for: %s", signal.market_question[:80])
         return False
 
-    # Pick the market whose question best matches
+    # Pick the market whose question best matches using stricter cutoff
     questions = [m.get("question", "") for m in markets]
     matches = difflib.get_close_matches(
-        signal.market_question, questions, n=1, cutoff=0.3
+        signal.market_question, questions, n=1, cutoff=config.FUZZY_MATCH_CUTOFF
     )
-    if matches:
-        idx = questions.index(matches[0])
-        best = markets[idx]
-    else:
-        best = markets[0]  # fall back to first result
+    if not matches:
+        log.warning(
+            "No fuzzy match above %.2f for: %s",
+            config.FUZZY_MATCH_CUTOFF,
+            signal.market_question[:80],
+        )
+        return False
+
+    idx = questions.index(matches[0])
+    best = markets[idx]
+
+    # Verify market has sufficient liquidity
+    if not _has_liquidity(best):
+        return False
 
     signal.condition_id = best.get("conditionId") or best.get("condition_id")
 
@@ -83,8 +128,9 @@ async def resolve_market(signal: WhaleSignal) -> bool:
         return False
 
     log.info(
-        "Resolved market → conditionId=%s  tokenId=%s",
+        "Resolved market → conditionId=%s  tokenId=%s  liquidity=$%.0f",
         signal.condition_id,
         signal.token_id,
+        float(best.get("liquidityNum") or best.get("liquidity") or 0),
     )
     return True

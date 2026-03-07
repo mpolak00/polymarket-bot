@@ -187,6 +187,19 @@ def api_start():
         return jsonify({"ok": False, "msg": str(exc)})
 
 
+@app.route("/health")
+def health():
+    """Simple health-check endpoint for uptime monitors / Docker HEALTHCHECK."""
+    live = sum(1 for t in state.trades if not t.get("dry_run"))
+    return jsonify({
+        "status": "ok",
+        "bot_running": state.bot_running,
+        "trades_total": len(state.trades),
+        "trades_live": live,
+        "configured": _is_configured(),
+    }), 200
+
+
 @app.route("/api/bot/stop", methods=["POST"])
 def api_stop():
     if not state.bot_running:

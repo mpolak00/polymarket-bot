@@ -36,6 +36,24 @@ SLIPPAGE_TOLERANCE: float = float(os.getenv("SLIPPAGE_TOLERANCE", "0.02"))
 # Cooldown seconds before copying the same market again
 MARKET_COOLDOWN_SECS: int = int(os.getenv("MARKET_COOLDOWN_SECS", "300"))
 
+# ── Rate limiting & daily caps ─────────────────────────────────────────────────
+# Maximum number of trades allowed per hour (0 = unlimited)
+MAX_TRADES_PER_HOUR: int = int(os.getenv("MAX_TRADES_PER_HOUR", "10"))
+# Maximum USDC to spend in a single calendar day (0 = unlimited)
+MAX_DAILY_LOSS_USDC: float = float(os.getenv("MAX_DAILY_LOSS_USDC", "500"))
+
+# ── Market resolution ──────────────────────────────────────────────────────────
+# Minimum fuzzy-match score to accept a market (higher = more strict)
+FUZZY_MATCH_CUTOFF: float = float(os.getenv("FUZZY_MATCH_CUTOFF", "0.5"))
+# Minimum market liquidity (USD) required before trading
+MIN_LIQUIDITY_USDC: float = float(os.getenv("MIN_LIQUIDITY_USDC", "1000"))
+
+# ── Reliability ────────────────────────────────────────────────────────────────
+# How many times to retry a failed order placement
+ORDER_RETRY_ATTEMPTS: int = int(os.getenv("ORDER_RETRY_ATTEMPTS", "3"))
+# Maximum age (seconds) of a Telegram message before ignoring it as stale
+MAX_MESSAGE_AGE_SECS: int = int(os.getenv("MAX_MESSAGE_AGE_SECS", "120"))
+
 # ── Misc ───────────────────────────────────────────────────────────────────────
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 DRY_RUN: bool = os.getenv("DRY_RUN", "false").lower() == "true"
