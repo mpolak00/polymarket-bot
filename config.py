@@ -54,6 +54,21 @@ ORDER_RETRY_ATTEMPTS: int = int(os.getenv("ORDER_RETRY_ATTEMPTS", "3"))
 # Maximum age (seconds) of a Telegram message before ignoring it as stale
 MAX_MESSAGE_AGE_SECS: int = int(os.getenv("MAX_MESSAGE_AGE_SECS", "120"))
 
+# ── BTC Up/Down arbitrage ─────────────────────────────────────────────────────
+# Enable the BTC arb scanner (runs alongside whale tracker)
+BTC_ARB_ENABLED: bool = os.getenv("BTC_ARB_ENABLED", "false").lower() == "true"
+# USDC to spend per arb trade
+BTC_ARB_TRADE_SIZE_USDC: float = float(os.getenv("BTC_ARB_TRADE_SIZE_USDC", "10"))
+# Minimum % price deviation from baseline to consider it a clear winner
+# e.g. 1.5 means BTC must be 1.5% above/below baseline before we bet
+BTC_ARB_MIN_EDGE_PCT: float = float(os.getenv("BTC_ARB_MIN_EDGE_PCT", "1.5"))
+# Only enter markets closing within this many seconds
+BTC_ARB_ENTRY_WINDOW_SECS: int = int(os.getenv("BTC_ARB_ENTRY_WINDOW_SECS", "300"))
+# Don't buy if the winning token is already priced above this (too late, no value)
+BTC_ARB_MAX_ENTRY_PRICE: float = float(os.getenv("BTC_ARB_MAX_ENTRY_PRICE", "0.80"))
+# How often to scan for new opportunities (seconds)
+BTC_ARB_SCAN_INTERVAL_SECS: int = int(os.getenv("BTC_ARB_SCAN_INTERVAL_SECS", "30"))
+
 # ── Misc ───────────────────────────────────────────────────────────────────────
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 DRY_RUN: bool = os.getenv("DRY_RUN", "false").lower() == "true"

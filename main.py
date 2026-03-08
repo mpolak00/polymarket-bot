@@ -1,9 +1,14 @@
 """
 Polymarket Whale Tracker Bot
 ────────────────────────────
-Monitors @PredictionRadarBot on Telegram for large trades (whales),
-resolves the market on Polymarket, sizes the position according to
-risk parameters, and places the order automatically.
+Two strategies run in parallel:
+
+1. Whale copy-trading: monitors @PredictionRadarBot on Telegram for large
+   trades and copies them proportionally into your Polymarket wallet.
+
+2. BTC Up/Down arbitrage (optional, set BTC_ARB_ENABLED=true): scans for
+   "Bitcoin Up or Down" markets closing soon and buys the winning side when
+   the live BTC price clearly indicates the outcome.
 
 Usage:
     python main.py
@@ -17,6 +22,7 @@ import signal
 import sys
 
 import config
+from btc_arb import BtcArbScanner
 from logger import get_logger
 from market_resolver import resolve_market
 from portfolio_manager import PortfolioManager
@@ -138,11 +144,31 @@ class WhaleTrackerBot:
         if config.DRY_RUN:
             log.warning("*** DRY-RUN MODE – no real orders will be placed ***")
 
+        tasks = []
+
+        # Strategy 1: BTC arbitrage scanner (optional)
+        if config.BTC_ARB_ENABLED:
+            arb = BtcArbScanner(self._trader)
+            tasks.append(asyncio.create_task(arb.run(), name="btc-arb"))
+            log.info("BTC arb scanner enabled.")
+        else:
+            log.info("BTC arb scanner disabled (set BTC_ARB_ENABLED=true to enable).")
+
+        # Strategy 2: Whale copy-trading via Telegram (always on)
         log.info("Starting Telegram monitor…")
-        await self._monitor.start()
+        if tasks:
+            # Run both concurrently; Telegram blocks until disconnected
+            tasks.append(asyncio.create_task(self._monitor.start(), name="telegram"))
+            await asyncio.gather(*tasks)
+        else:
+            await self._monitor.start()
 
     async def shutdown(self) -> None:
         await self._monitor.stop()
+        # Cancel any background tasks
+        for task in asyncio.all_tasks():
+            if task.get_name() in ("btc-arb", "telegram") and not task.done():
+                task.cancel()
         log.info("Bot shut down.")
 
 
