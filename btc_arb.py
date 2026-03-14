@@ -256,16 +256,18 @@ class BtcArbScanner:
             return
 
         # Build a minimal signal-like object compatible with place_market_order
-        class _ArbSignal:
-            market_question = market.get("question", "BTC Up/Down")
-            condition_id = market.get("conditionId") or market.get("condition_id")
-            token_id = token_id  # noqa: F821
-            probability = token_price
-            amount_usdc = config.BTC_ARB_TRADE_SIZE_USDC
-            outcome = outcome  # noqa: F821
+        from trade_parser import WhaleSignal
+        arb_signal = WhaleSignal(
+            market_question=market.get("question", "BTC Up/Down"),
+            outcome=outcome,
+            amount_usdc=config.BTC_ARB_TRADE_SIZE_USDC,
+            probability=token_price,
+        )
+        arb_signal.condition_id = market.get("conditionId") or market.get("condition_id")
+        arb_signal.token_id = token_id
 
         success = await self._trader.place_market_order(
-            _ArbSignal(), config.BTC_ARB_TRADE_SIZE_USDC  # type: ignore[arg-type]
+            arb_signal, config.BTC_ARB_TRADE_SIZE_USDC
         )
         if success:
             self._traded.add(market.get("conditionId", ""))

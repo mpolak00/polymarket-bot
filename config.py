@@ -1,21 +1,50 @@
 """
 Configuration loader – reads all settings from environment variables / .env file.
+
+Provides clear error messages when required variables are missing instead of
+crashing with a raw KeyError.
 """
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _require(name: str) -> str:
+    """Return env var value or exit with a clear error message."""
+    val = os.environ.get(name)
+    if not val:
+        print(
+            f"\n  ERROR: Required environment variable '{name}' is not set.\n"
+            f"  Copy .env.example to .env and fill in your credentials:\n"
+            f"    cp .env.example .env\n",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    return val
+
+
+def _require_int(name: str) -> int:
+    val = _require(name)
+    try:
+        return int(val)
+    except ValueError:
+        print(f"\n  ERROR: '{name}' must be an integer, got: '{val}'\n", file=sys.stderr)
+        raise SystemExit(1)
+
+
 # ── Telegram ──────────────────────────────────────────────────────────────────
-TELEGRAM_API_ID: int = int(os.environ["TELEGRAM_API_ID"])
-TELEGRAM_API_HASH: str = os.environ["TELEGRAM_API_HASH"]
-TELEGRAM_PHONE: str = os.environ["TELEGRAM_PHONE"]          # e.g. +38160...
+TELEGRAM_API_ID: int = _require_int("TELEGRAM_API_ID")
+TELEGRAM_API_HASH: str = _require("TELEGRAM_API_HASH")
+TELEGRAM_PHONE: str = _require("TELEGRAM_PHONE")          # e.g. +38160...
 WHALE_BOT_USERNAME: str = os.getenv("WHALE_BOT_USERNAME", "PredictionRadarBot")
 TELEGRAM_SESSION_NAME: str = os.getenv("TELEGRAM_SESSION_NAME", "polymarket_watcher")
 
 # ── Polymarket / Polygon ───────────────────────────────────────────────────────
-POLYGON_PRIVATE_KEY: str = os.environ["POLYGON_PRIVATE_KEY"]   # 0x-prefixed
+POLYGON_PRIVATE_KEY: str = _require("POLYGON_PRIVATE_KEY")   # 0x-prefixed
 CLOB_API_URL: str = os.getenv("CLOB_API_URL", "https://clob.polymarket.com")
 GAMMA_API_URL: str = os.getenv("GAMMA_API_URL", "https://gamma-api.polymarket.com")
 
@@ -71,4 +100,4 @@ BTC_ARB_SCAN_INTERVAL_SECS: int = int(os.getenv("BTC_ARB_SCAN_INTERVAL_SECS", "3
 
 # ── Misc ───────────────────────────────────────────────────────────────────────
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-DRY_RUN: bool = os.getenv("DRY_RUN", "false").lower() == "true"
+DRY_RUN: bool = os.getenv("DRY_RUN", "true").lower() == "true"

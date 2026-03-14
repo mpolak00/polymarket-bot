@@ -1,7 +1,7 @@
 """Centralised logger setup."""
 import logging
+import os
 import colorlog
-import config
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -22,5 +22,6 @@ def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.addHandler(handler)
-    logger.setLevel(getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    logger.setLevel(getattr(logging, level_name, logging.INFO))
     return logger
