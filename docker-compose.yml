@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    container_name: whale-bot
+    restart: always
+    env_file: .env
+    volumes:
+      # Persist Telegram session so you don't re-verify every restart
+      - ./sessions:/app/sessions
+      # Persist trade history
+      - ./trades.json:/app/trades.json
+    # Uncomment below to also run the web dashboard on port 5000:
+    # command: ["python", "web_app.py"]
+    # ports:
+    #   - "5000:5000"

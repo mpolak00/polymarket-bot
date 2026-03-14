@@ -107,27 +107,100 @@ Everything else has safe defaults. Key **optional** settings:
 | Variable | Default | Description |
 |---|---|---|
 | `DRY_RUN` | `true` | Simulate trades without spending money |
-| `MAX_TRADE_SIZE_USDC` | 50 | Hard cap per trade in USDC |
-| `MAX_TRADE_PCT` | 0.05 | Max % of balance per trade |
+| `MAX_TRADE_SIZE_USDC` | 5 | Hard cap per trade in USDC |
+| `MAX_TRADE_PCT` | 0.03 | Max 3% of balance per trade |
 | `MIN_WHALE_SIZE_USDC` | 5000 | Ignore whale trades below this |
 | `COPY_SCALE_FACTOR` | 0.001 | your\_bet = whale\_bet × factor |
 | `MIN_PROBABILITY` | 0.05 | Skip markets below this prob |
 | `MAX_PROBABILITY` | 0.95 | Skip markets above this prob |
 | `MARKET_COOLDOWN_SECS` | 300 | Cooldown per market (seconds) |
 | `MAX_TRADES_PER_HOUR` | 10 | Rate limit per hour |
-| `MAX_DAILY_LOSS_USDC` | 500 | Daily spending cap |
+| `MAX_DAILY_LOSS_USDC` | 15 | Daily spending cap |
 
 ### BTC Arbitrage (optional)
 
 Set `BTC_ARB_ENABLED=true` to enable. See `.env.example` for all BTC arb settings.
 
+## Example: $70 account
+
+With the default settings and a $70 balance:
+- **Per trade**: min($5 hard cap, 3% × $70 = $2.10) = **$2.10 max per trade**
+- **Per day**: max $15/day = **at most ~7 trades/day** if all hit max
+- **Account lifespan**: even if every trade loses, $70 ÷ $15 = **~5 days minimum**
+
+To increase bet sizes as your balance grows, raise `MAX_TRADE_SIZE_USDC` and `MAX_TRADE_PCT`.
+
 ## Going live (real trades)
 
 1. Start with `DRY_RUN=true` (default) — verify signals parse correctly in logs
 2. Make sure your wallet has USDC deposited on Polymarket
-3. Set small limits first: `MAX_TRADE_SIZE_USDC=5` and `MAX_DAILY_LOSS_USDC=50`
-4. Set `DRY_RUN=false` in `.env`
-5. Restart the bot
+3. Set `DRY_RUN=false` in `.env`
+4. Restart the bot
+
+## Run 24/7 on a server (VPS)
+
+The bot needs to run non-stop to catch whale signals. Use Docker on a cheap VPS ($4-6/month):
+
+### Option 1: Docker (recommended)
+
+```bash
+# On your VPS:
+git clone <repo> && cd polymarket-bot
+
+# Create .env with your credentials
+cp .env.example .env
+nano .env
+
+# First run — need to enter Telegram code interactively:
+docker compose run --rm bot
+
+# After verification succeeds, Ctrl+C and start in background:
+docker compose up -d
+
+# Check logs:
+docker compose logs -f
+
+# Stop:
+docker compose down
+```
+
+The `restart: always` in docker-compose.yml means the bot auto-restarts on crash or server reboot.
+
+### Option 2: systemd (without Docker)
+
+```bash
+# On your VPS — run setup.sh first, then:
+sudo tee /etc/systemd/system/whale-bot.service << 'EOF'
+[Unit]
+Description=Polymarket Whale Bot
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/polymarket-bot
+ExecStart=/home/YOUR_USERNAME/polymarket-bot/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable whale-bot
+sudo systemctl start whale-bot
+
+# Check status:
+sudo systemctl status whale-bot
+journalctl -u whale-bot -f
+```
+
+### Cheap VPS providers
+
+- **Hetzner** — €3.79/mo (CX22, 2 vCPU, 4GB RAM) — best value
+- **DigitalOcean** — $4/mo (Basic, 512MB RAM) — enough for this bot
+- **Vultr** — $3.50/mo (Cloud Compute)
+- **Oracle Cloud** — **free tier** (ARM, 4 vCPU, 24GB RAM)
 
 ## Troubleshooting
 
